@@ -738,7 +738,7 @@ static void __smb1_oplock_break_noti(struct work_struct *wk)
  *
  * Return:      0 on success, otherwise error
  */
-static int smb1_oplock_break_noti(struct oplock_info *opinfo, int ack_required)
+static int smb1_oplock_break_noti(struct oplock_info *opinfo)
 {
 	struct ksmbd_conn *conn = opinfo->conn;
 	struct ksmbd_work *work = ksmbd_alloc_work_struct();
@@ -749,7 +749,7 @@ static int smb1_oplock_break_noti(struct oplock_info *opinfo, int ack_required)
 	work->request_buf = (char *)opinfo;
 	work->conn = conn;
 
-	if (ack_required) {
+	if (opinfo->op_state == OPLOCK_ACK_WAIT) {
 		int rc;
 
 		atomic_inc(&conn->r_count);
@@ -865,7 +865,7 @@ static void __smb2_oplock_break_noti(struct work_struct *wk)
  *
  * Return:      0 on success, otherwise error
  */
-static int smb2_oplock_break_noti(struct oplock_info *opinfo, int ack_required)
+static int smb2_oplock_break_noti(struct oplock_info *opinfo)
 {
 	struct ksmbd_conn *conn = opinfo->conn;
 	struct oplock_break_info *br_info;
@@ -889,7 +889,7 @@ static int smb2_oplock_break_noti(struct oplock_info *opinfo, int ack_required)
 	work->conn = conn;
 	work->sess = opinfo->sess;
 
-	if (ack_required) {
+	if (opinfo->op_state == OPLOCK_ACK_WAIT) {
 		int rc;
 
 		atomic_inc(&conn->r_count);
@@ -934,7 +934,7 @@ static void wait_for_lease_break_ack(struct oplock_info *opinfo)
 }
 
 /**
- * smb2_lease_break_noti() - send lease break command from server
+ * __smb2_lease_break_noti() - send lease break command from server
  * to client
  * @work:     smb work object
  */
@@ -999,7 +999,7 @@ static void __smb2_lease_break_noti(struct work_struct *wk)
  *
  * Return:	0 on success, otherwise error
  */
-static int smb2_lease_break_noti(struct oplock_info *opinfo, int ack_required)
+static int smb2_lease_break_noti(struct oplock_info *opinfo)
 {
 	struct ksmbd_conn *conn = opinfo->conn;
 	struct list_head *tmp, *t;
@@ -1025,7 +1025,7 @@ static int smb2_lease_break_noti(struct oplock_info *opinfo, int ack_required)
 	work->conn = conn;
 	work->sess = opinfo->sess;
 
-	if (ack_required) {
+	if (opinfo->op_state == OPLOCK_ACK_WAIT) {
 		list_for_each_safe(tmp, t, &opinfo->interim_list) {
 			struct ksmbd_work *in_work;
 
@@ -1067,7 +1067,6 @@ static int smb2_lease_break_noti(struct oplock_info *opinfo, int ack_required)
 static int oplock_break(struct oplock_info *brk_opinfo, int req_op_level)
 {
 	int err = 0;
-	int ack_required = 0;
 
 	/* Need to break exclusive/batch oplock, write lease or overwrite_if */
 	ksmbd_debug("request to send oplock(level : 0x%x) break notification\n",
@@ -1111,7 +1110,7 @@ static int oplock_break(struct oplock_info *brk_opinfo, int req_op_level)
 			}
 		}
 
-		if (lease->state & (SMB2_LEASE_WRITE_CACHING_LE |
+		if (!brk_opinfo->open_trunc && lease->state & (SMB2_LEASE_WRITE_CACHING_LE |
 				SMB2_LEASE_HANDLE_CACHING_LE))
 			brk_opinfo->op_state = OPLOCK_ACK_WAIT;
 	} else {
@@ -1127,51 +1126,18 @@ static int oplock_break(struct oplock_info *brk_opinfo, int req_op_level)
 #ifdef CONFIG_SMB_INSECURE_SERVER
 	if (brk_opinfo->is_smb2) {
 		if (brk_opinfo->is_lease) {
-			struct lease *lease = brk_opinfo->o_lease;
-
-			if ((brk_opinfo->open_trunc == 1 &&
-				!(lease->state &
-					SMB2_LEASE_WRITE_CACHING_LE)) ||
-				lease->state == SMB2_LEASE_READ_CACHING_LE)
-				ack_required = 0;
-			else
-				ack_required = 1;
-
-			err = smb2_lease_break_noti(brk_opinfo, ack_required);
+			err = smb2_lease_break_noti(brk_opinfo);
 		} else {
-			/* break oplock */
-			if (brk_opinfo->level == SMB2_OPLOCK_LEVEL_BATCH ||
-				brk_opinfo->level ==
-				SMB2_OPLOCK_LEVEL_EXCLUSIVE)
-				ack_required = 1;
-			err = smb2_oplock_break_noti(brk_opinfo, ack_required);
+			err = smb2_oplock_break_noti(brk_opinfo);
 		}
 	} else {
-		if ((brk_opinfo->level == SMB2_OPLOCK_LEVEL_BATCH) ||
-			(brk_opinfo->level == SMB2_OPLOCK_LEVEL_EXCLUSIVE))
-			ack_required = 1;
-		err = smb1_oplock_break_noti(brk_opinfo, ack_required);
+		err = smb1_oplock_break_noti(brk_opinfo);
 	}
 #else
 	if (brk_opinfo->is_lease) {
-		struct lease *lease = brk_opinfo->o_lease;
-
-		if ((brk_opinfo->open_trunc == 1 &&
-		    !(lease->state &
-		    SMB2_LEASE_WRITE_CACHING_LE)) ||
-		    lease->state == SMB2_LEASE_READ_CACHING_LE)
-			ack_required = 0;
-		else
-			ack_required = 1;
-
-		err = smb2_lease_break_noti(brk_opinfo, ack_required);
+		err = smb2_lease_break_noti(brk_opinfo);
 	} else {
-		/* break oplock */
-		if (brk_opinfo->level == SMB2_OPLOCK_LEVEL_BATCH ||
-				brk_opinfo->level ==
-				SMB2_OPLOCK_LEVEL_EXCLUSIVE)
-			ack_required = 1;
-		err = smb2_oplock_break_noti(brk_opinfo, ack_required);
+		err = smb2_oplock_break_noti(brk_opinfo);
 	}
 #endif
 
