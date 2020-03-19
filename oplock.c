@@ -620,8 +620,8 @@ static int wait_for_oplock_break(struct oplock_info *opinfo, int req_op_level)
 		wait_on_bit(&opinfo->pending_break, 0, TASK_UNINTERRUPTIBLE);
 		if (opinfo->op_state == OPLOCK_CLOSING)
 			return -ENOENT;
-		else if (opinfo->level <= req_op_level)
-			return 1;
+//		else if (opinfo->level <= req_op_level)
+//			return 1;
 	}
 	return 0;
 }
