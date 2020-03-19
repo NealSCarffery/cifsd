@@ -250,44 +250,6 @@ void __exit ksmbd_release_inode_hash(void)
  * KSMBD FP cache
  */
 
-/* copy-pasted from old fh */
-static void inherit_delete_pending(struct ksmbd_file *fp)
-{
-	struct list_head *cur;
-	struct ksmbd_file *prev_fp;
-	struct ksmbd_inode *ci = fp->f_ci;
-
-	fp->delete_on_close = 0;
-
-	write_lock(&ci->m_lock);
-	list_for_each_prev(cur, &ci->m_fp_list) {
-		prev_fp = list_entry(cur, struct ksmbd_file, node);
-		if (fp != prev_fp && (fp->tcon == prev_fp->tcon ||
-				ci->m_flags & S_DEL_ON_CLS))
-			ci->m_flags |= S_DEL_PENDING;
-	}
-	write_unlock(&ci->m_lock);
-}
-
-/* copy-pasted from old fh */
-static void invalidate_delete_on_close(struct ksmbd_file *fp)
-{
-	struct list_head *cur;
-	struct ksmbd_file *prev_fp;
-	struct ksmbd_inode *ci = fp->f_ci;
-
-	read_lock(&ci->m_lock);
-	list_for_each_prev(cur, &ci->m_fp_list) {
-		prev_fp = list_entry(cur, struct ksmbd_file, node);
-		if (fp == prev_fp)
-			break;
-		if (fp->tcon == prev_fp->tcon)
-			prev_fp->delete_on_close = 0;
-	}
-	read_unlock(&ci->m_lock);
-}
-
-/* copy-pasted from old fh */
 static void __ksmbd_inode_close(struct ksmbd_file *fp)
 {
 	struct dentry *dir, *dentry;
@@ -296,13 +258,6 @@ static void __ksmbd_inode_close(struct ksmbd_file *fp)
 	struct file *filp;
 
 	filp = fp->filp;
-	if (atomic_read(&ci->m_count) >= 2) {
-		if (fp->delete_on_close)
-			inherit_delete_pending(fp);
-		else
-			invalidate_delete_on_close(fp);
-	}
-
 	if (ksmbd_stream_fd(fp) && (ci->m_flags & S_DEL_ON_CLS_STREAM)) {
 		ci->m_flags &= ~S_DEL_ON_CLS_STREAM;
 		err = ksmbd_vfs_remove_xattr(filp->f_path.dentry,
