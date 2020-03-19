@@ -7372,8 +7372,9 @@ static int smb21_lease_break_ack(struct ksmbd_work *work)
 	opinfo = lookup_lease_in_table(conn, req->LeaseKey);
 	if (!opinfo) {
 		ksmbd_debug("file not opened\n");
+		smb2_set_err_rsp(work);
 		rsp->hdr.Status = STATUS_UNSUCCESSFUL;
-		goto err_out;
+		return 0;
 	}
 	lease = opinfo->o_lease;
 
@@ -7472,8 +7473,7 @@ static int smb21_lease_break_ack(struct ksmbd_work *work)
 
 err_out:
 	opinfo_put(opinfo);
-	if (opinfo)
-		opinfo->op_state = OPLOCK_STATE_NONE;
+	opinfo->op_state = OPLOCK_STATE_NONE;
 	wake_up_interruptible(&opinfo->oplock_q);
 	smb2_set_err_rsp(work);
 	return 0;
