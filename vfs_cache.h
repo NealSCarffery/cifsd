@@ -94,7 +94,6 @@ struct ksmbd_file {
 	bool				is_resilient;
 	bool				is_persistent;
 	bool				is_nt_open;
-	bool				is_stream;
 	bool				delete_on_close;
 	bool				attrib_only;
 

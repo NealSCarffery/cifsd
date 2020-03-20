@@ -190,7 +190,7 @@ static void opinfo_del(struct oplock_info *opinfo)
 
 static unsigned long opinfo_count(struct ksmbd_file *fp)
 {
-	if (fp->is_stream)
+	if (ksmbd_stream_fd(fp))
 		return atomic_read(&fp->f_ci->sop_count);
 	else
 		return atomic_read(&fp->f_ci->op_count);
@@ -198,7 +198,7 @@ static unsigned long opinfo_count(struct ksmbd_file *fp)
 
 static void opinfo_count_inc(struct ksmbd_file *fp)
 {
-	if (fp->is_stream)
+	if (ksmbd_stream_fd(fp))
 		return atomic_inc(&fp->f_ci->sop_count);
 	else
 		return atomic_inc(&fp->f_ci->op_count);
@@ -206,7 +206,7 @@ static void opinfo_count_inc(struct ksmbd_file *fp)
 
 static void opinfo_count_dec(struct ksmbd_file *fp)
 {
-	if (fp->is_stream)
+	if (ksmbd_stream_fd(fp))
 		return atomic_dec(&fp->f_ci->sop_count);
 	else
 		return atomic_dec(&fp->f_ci->op_count);

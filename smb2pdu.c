@@ -2719,7 +2719,6 @@ int smb2_open(struct ksmbd_work *work)
 		if (rc)
 			goto err_out;
 		file_info = FILE_CREATED;
-		fp->is_stream = true;
 	}
 
 	fp->attrib_only = !(req->DesiredAccess & ~(FILE_READ_ATTRIBUTES_LE |
