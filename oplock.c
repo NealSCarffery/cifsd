@@ -1407,7 +1407,7 @@ op_break_not_needed:
 	}
 
 set_lev:
-	if (share_ret < 0) {
+	if (!prev_opinfo && share_ret < 0) {
 		err = share_ret;
 		goto err_out;
 	}
