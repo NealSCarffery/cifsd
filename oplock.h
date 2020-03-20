@@ -67,7 +67,6 @@ struct oplock_info {
 	struct ksmbd_file	*o_fp;
 	int                     level;
 	int                     op_state;
-	unsigned long		pending_break;
 	uint64_t                fid;
 	atomic_t		breaking_cnt;
 	atomic_t		refcount;
@@ -84,6 +83,7 @@ struct oplock_info {
 	wait_queue_head_t oplock_q; /* Other server threads */
 	wait_queue_head_t oplock_brk; /* oplock breaking wait */
 	struct rcu_head		rcu_head;
+	spinlock_t		state_lock;
 };
 
 struct lease_break_info {
