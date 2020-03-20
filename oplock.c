@@ -1393,11 +1393,6 @@ int smb_grant_oplock(struct ksmbd_work *work,
 		goto err_out;
 
 op_break_not_needed:
-	if (share_ret < 0) {
-		err = share_ret;
-		goto err_out;
-	}
-
 	if (req_op_level != SMB2_OPLOCK_LEVEL_NONE)
 		req_op_level = SMB2_OPLOCK_LEVEL_II;
 
@@ -1412,6 +1407,11 @@ op_break_not_needed:
 	}
 
 set_lev:
+	if (share_ret < 0) {
+		err = share_ret;
+		goto err_out;
+	}
+
 	set_oplock_level(opinfo, req_op_level, lctx);
 
 out:
