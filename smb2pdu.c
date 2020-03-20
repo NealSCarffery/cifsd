@@ -2738,7 +2738,8 @@ int smb2_open(struct ksmbd_work *work)
 	}
 
 	share_ret = ksmbd_smb_check_shared_mode(fp->filp, fp);
-	if (!test_share_config_flag(work->tcon->share_conf,
+	if ((!atomic_read(&fp->f_ci->op_count) && !req_op_level) ||
+		!test_share_config_flag(work->tcon->share_conf,
 			KSMBD_SHARE_FLAG_OPLOCKS) ||
 		(req_op_level == SMB2_OPLOCK_LEVEL_LEASE &&
 		!(conn->vals->capabilities & SMB2_GLOBAL_CAP_LEASING))) {

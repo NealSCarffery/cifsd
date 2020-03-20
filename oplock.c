@@ -1407,11 +1407,6 @@ op_break_not_needed:
 	}
 
 set_lev:
-	if (!prev_opinfo && share_ret < 0) {
-		err = share_ret;
-		goto err_out;
-	}
-
 	set_oplock_level(opinfo, req_op_level, lctx);
 
 out:
